@@ -1,20 +1,31 @@
-FROM alpine:edge
+FROM python:3.14-rc-alpine3.22
 
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
-ENV VIRTUAL_ENV=/opt/env
-ENV UV_PROJECT_ENVIRONMENT=/opt/env
-ENV WORKING_DIR=/opt/invenio
-ENV INVENIO_INSTANCE_PATH=${WORKING_DIR}/var/instance
-ENV PATH=$VIRTUAL_ENV/bin:$PATH
+
+ENV UV_FROZEN=1 \
+    # https://docs.astral.sh/uv/reference/cli/#uv-run--compile-bytecode
+    UV_COMPILE_BYTECODE=1 \
+    # https://docs.astral.sh/uv/reference/cli/#uv-run--link-mode
+    UV_LINK_MODE=copy \
+    # https://docs.astral.sh/uv/reference/cli/#uv-run--no-managed-python
+    UV_NO_MANAGED_PYTHON=1 \
+    # https://docs.astral.sh/uv/reference/cli/#uv-python-find--system
+    UV_SYSTEM_PYTHON=1 \
+    # https://docs.astral.sh/uv/reference/environment/#uv_python_downloads
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/env
+
+ENV WORKING_DIR=/opt/invenio \
+    INVENIO_INSTANCE_PATH=${WORKING_DIR}/var/instance
+
 
 RUN apk update
 
 # ttf-dejavu: for doi badges
-RUN apk add --update --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
-    "python3>3.12" \
+RUN apk add --update --no-cache \
     libxslt-dev \
     xmlsec \
     cairo \
@@ -24,16 +35,10 @@ RUN apk add --update --no-cache --repository=https://dl-cdn.alpinelinux.org/alpi
     bash \
     uv
 
-RUN uv venv ${VIRTUAL_ENV}
-RUN source ${VIRTUAL_ENV}/bin/activate
-
-RUN mkdir -p ${INVENIO_INSTANCE_PATH}
-RUN mkdir -p ${VIRTUAL_ENV}
-RUN mkdir -p ${WORKING_DIR}/src/saml/idp/cert
+RUN mkdir -p ${INVENIO_INSTANCE_PATH} \
+    mkdir -p ${WORKING_DIR}/src/saml/idp/cert
 
 RUN adduser invenio --no-create-home --disabled-password
-
-RUN rm /opt/env/bin/python && ln -s /usr/bin/python python
 
 ENTRYPOINT [ "bash", "-c"]
 

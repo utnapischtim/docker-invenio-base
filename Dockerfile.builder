@@ -1,25 +1,34 @@
-FROM alpine:edge
+FROM python:3.14-rc-alpine3.22
 
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 
-ENV PYTHONUNBUFFERED=1
-ENV PIPENV_VERBOSITY=-1
-ENV VIRTUAL_ENV=/opt/env
-ENV UV_PROJECT_ENVIRONMENT=/opt/env
-ENV WORKING_DIR=/opt/invenio
-ENV INVENIO_INSTANCE_PATH=${WORKING_DIR}/var/instance
-ENV PYTHONUSERBASE=$VIRTUAL_ENV
-ENV PATH=$VIRTUAL_ENV/bin:$PATH
-ENV PYTHONPATH=$VIRTUAL_ENV/lib/python3.12:$PATH
+ENV PYTHONUNBUFFERED=1 \
+    # https://stackoverflow.com/a/60797635
+    PYTHONDONTWRITEBYTECODE=1
+
+ENV UV_FROZEN=1 \
+    # https://docs.astral.sh/uv/reference/cli/#uv-run--compile-bytecode
+    # UV_COMPILE_BYTECODE=1 \
+    # https://docs.astral.sh/uv/reference/cli/#uv-run--link-mode
+    UV_LINK_MODE=copy \
+    # https://docs.astral.sh/uv/reference/cli/#uv-run--no-managed-python
+    UV_NO_MANAGED_PYTHON=1 \
+    # https://docs.astral.sh/uv/reference/cli/#uv-python-find--system
+    UV_SYSTEM_PYTHON=1 \
+    # https://docs.astral.sh/uv/reference/environment/#uv_python_downloads
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/env
+
+ENV WORKING_DIR=/opt/invenio \
+    INVENIO_INSTANCE_PATH=${WORKING_DIR}/var/instance
+
+ENV PATH=$UV_PROJECT_ENVIRONMENT/bin:$PATH
 
 RUN apk update
-RUN apk add --update --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
-    "python3>3.12" \
-    "python3-dev>3.12" \
-    "nodejs>20" \
-    "npm>10" \
+RUN apk add --update --no-cache \
+    nodejs \
     git \
     cairo \
     autoconf \
@@ -38,8 +47,7 @@ RUN apk add --update --no-cache --repository=https://dl-cdn.alpinelinux.org/alpi
     pnpm \
     openssl
 
-RUN uv venv ${VIRTUAL_ENV}
-RUN source ${VIRTUAL_ENV}/bin/activate
+
 
 # necessary because of https://github.com/xmlsec/python-xmlsec/pull/325
 ENV CFLAGS="-Wno-error=incompatible-pointer-types"
@@ -48,6 +56,14 @@ ENV CFLAGS="-Wno-error=incompatible-pointer-types"
 # https://github.com/xmlsec/python-xmlsec/issues/316
 # --only-binary is not working!!!! it builds but it fails on runtime
 RUN uv pip install --no-binary=xmlsec --no-binary=lxml lxml xmlsec
+
+RUN apk add --update --no-cache \
+    postgresql15-dev \
+    libffi-dev \
+    qpdf-dev \
+    py3-pikepdf \
+    isa-l-dev \
+    nasm
 
 WORKDIR ${WORKING_DIR}/src
 
